@@ -761,17 +761,19 @@
 
   function formatBlocks(freeBlocks, tzId) {
     const abbr = tzAbbr(tzId);
-    let out = '';
+    let html = '<ul>';
     Object.entries(freeBlocks).sort().forEach(([iso, blocks]) => {
       if (!blocks.length) return;
       const d = new Date(iso + 'T12:00:00');
       const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'numeric', day: 'numeric' });
-      out += `-${dayLabel}\n`;
+      html += `<li>${dayLabel}<ul>`;
       blocks.forEach(b => {
-        out += `     -${formatTime(b.start, abbr)} - ${formatTime(b.end, abbr)}\n`;
+        html += `<li>${formatTime(b.start, abbr)} - ${formatTime(b.end, abbr)}</li>`;
       });
+      html += '</ul></li>';
     });
-    return out.trim();
+    html += '</ul>';
+    return html;
   }
 
   // ── Demo mode (no real Outlook / EWS) ─────────────────
@@ -828,7 +830,7 @@
 
   function showOutput(text) {
     const box = document.getElementById('outputBox');
-    document.getElementById('outputText').textContent = text || '(No overlapping free time found for the selected days.)';
+    document.getElementById('outputText').innerHTML = text || '(No overlapping free time found for the selected days.)';
     box.classList.add('visible');
     box.scrollIntoView({ behavior: 'smooth' });
   }
@@ -843,7 +845,10 @@
   }
 
   function copyOutput() {
-    navigator.clipboard.writeText(generatedText).then(() => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = generatedText;
+    const plain = tmp.innerText;
+    navigator.clipboard.writeText(plain).then(() => {
       const btn = document.getElementById('copyBtn');
       btn.textContent = 'Copied!';
       btn.classList.add('copied');
@@ -855,7 +860,7 @@
     try {
       Office.context.mailbox.item.body.setSelectedDataAsync(
         generatedText,
-        { coercionType: Office.CoercionType.Text },
+        { coercionType: Office.CoercionType.Html },
         () => {}
       );
     } catch(e) {
