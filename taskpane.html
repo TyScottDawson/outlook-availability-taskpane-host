@@ -610,11 +610,8 @@
 
   // ── Core: Get Free/Busy via EWS ───────────────────────
   async function getFreeBusy(emails, dates, tzId, startHour, endHour) {
-    // Build EWS GetUserAvailability SOAP request
     const mailbox = Office.context.mailbox;
-    const ewsUrl = mailbox.ewsUrl;
 
-    // Build MailboxDataArray
     const mailboxItems = emails.map(e =>
       `<t:MailboxData>
         <t:Email><t:Address>${e}</t:Address></t:Email>
@@ -623,10 +620,11 @@
       </t:MailboxData>`
     ).join('');
 
-    // Time window: first date start → last date end
+    // Use full-day UTC window to avoid timezone bias issues in the SOAP layer.
+    // We filter down to working hours after parsing.
     const sortedDates = [...dates].sort();
-    const windowStart = `${sortedDates[0]}T${startHour}:00`;
-    const windowEnd   = `${sortedDates[sortedDates.length-1]}T${endHour}:00`;
+    const windowStart = `${sortedDates[0]}T00:00:00`;
+    const windowEnd   = `${sortedDates[sortedDates.length-1]}T23:59:00`;
 
     const soap = `<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
@@ -634,14 +632,13 @@
                xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">
   <soap:Header>
     <t:RequestServerVersion Version="Exchange2013"/>
-    <t:TimeZoneContext><t:TimeZoneDefinition Id="${tzId}"/></t:TimeZoneContext>
   </soap:Header>
   <soap:Body>
     <m:GetUserAvailabilityRequest>
       <t:TimeZone>
         <t:Bias>0</t:Bias>
         <t:StandardTime><t:Bias>0</t:Bias><t:Time>02:00:00</t:Time><t:DayOrder>1</t:DayOrder><t:Month>11</t:Month><t:DayOfWeek>Sunday</t:DayOfWeek></t:StandardTime>
-        <t:DaylightTime><t:Bias>-60</t:Bias><t:Time>02:00:00</t:Time><t:DayOrder>2</t:DayOrder><t:Month>3</t:Month><t:DayOfWeek>Sunday</t:DayOfWeek></t:DaylightTime>
+        <t:DaylightTime><t:Bias>0</t:Bias><t:Time>02:00:00</t:Time><t:DayOrder>2</t:DayOrder><t:Month>3</t:Month><t:DayOfWeek>Sunday</t:DayOfWeek></t:DaylightTime>
       </t:TimeZone>
       <m:MailboxDataArray>${mailboxItems}</m:MailboxDataArray>
       <t:FreeBusyViewOptions>
@@ -667,37 +664,32 @@
     });
   }
 
-  // Parse merged free/busy string into busy slots per date
+  // Parse merged free/busy — response covers full day (48 x 30-min slots, 00:00–23:59 UTC)
   function parseMergedFreeBusy(xmlStr, dates, startHour, endHour) {
-    // Returns { "YYYY-MM-DD": boolean[] } where each bool = isFree for each 30-min slot
     const parser = new DOMParser();
     const doc = parser.parseFromString(xmlStr, 'text/xml');
     const mergedNodes = doc.querySelectorAll('MergedFreeBusy');
-    
-    // One merged string covers the whole window, one per attendee
-    // We need to combine: a slot is free only if ALL attendees are free
-    const slotsPerDay = Math.round(((timeToMins(endHour) - timeToMins(startHour))) / 30);
-    
-    // Build combined free/busy per date
-    const result = {};
-    dates.sort().forEach(d => { result[d] = new Array(slotsPerDay).fill(true); });
+
+    const SLOTS_PER_DAY = 48; // full 24h at 30-min resolution
+    const workStartSlot = Math.floor(timeToMins(startHour) / 30);
+    const workEndSlot   = Math.floor(timeToMins(endHour) / 30);
+    const slotsPerDay   = workEndSlot - workStartSlot;
 
     const sortedDates = [...dates].sort();
-    const windowStartMins = timeToMins(startHour);
+    const result = {};
+    sortedDates.forEach(d => { result[d] = new Array(slotsPerDay).fill(true); });
 
     mergedNodes.forEach(node => {
       const merged = node.textContent.trim();
-      // Each char = 30-min slot from windowStart
-      // 0=free, 1=tentative, 2=busy, 3=out of office, 4=no data
-      let totalSlot = 0;
-      sortedDates.forEach(d => {
+      sortedDates.forEach((d, dayIdx) => {
+        const dayOffset = dayIdx * SLOTS_PER_DAY;
         for (let s = 0; s < slotsPerDay; s++) {
-          const ch = merged[totalSlot + s];
+          const ch = merged[dayOffset + workStartSlot + s];
+          // 0 = free, anything else = busy/tentative/OOO/no-data
           if (ch && ch !== '0') {
-            if (result[d]) result[d][s] = false;
+            result[d][s] = false;
           }
         }
-        totalSlot += slotsPerDay;
       });
     });
 
@@ -822,7 +814,8 @@
       const freeBusy = parseMergedFreeBusy(xmlStr, selectedDates, startHour, endHour);
       const blocks = getFreeBlocks(freeBusy, startHour, minSlotMins);
       generatedText = formatBlocks(blocks, tzId);
-      debugMsg = '✓ Live calendar data loaded successfully.';
+      const mergedCount = (xmlStr.match(/MergedFreeBusy/g) || []).length / 2;
+      debugMsg = `✓ Live calendar data loaded (${mergedCount} attendee response(s)).`;
     } catch(e) {
       console.warn('EWS error:', e.message);
       debugMsg = '⚠ Could not load live calendar data: ' + e.message + ' — showing demo data instead.';
