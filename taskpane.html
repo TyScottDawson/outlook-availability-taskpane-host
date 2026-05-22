@@ -610,6 +610,12 @@
 
   // ── Core: Get Free/Busy via EWS ───────────────────────
   async function getFreeBusy(emails, dates, tzId, startHour, endHour) {
+    showDebug('getFreeBusy called. Checking Office context...');
+    if (!Office || !Office.context || !Office.context.mailbox) {
+      showDebug('ERROR: Office.context.mailbox is not available.');
+      throw new Error('Office.context.mailbox is not available.');
+    }
+    showDebug('Office context OK. ewsUrl = ' + (Office.context.mailbox.ewsUrl || 'NONE'));
     const mailbox = Office.context.mailbox;
 
     const mailboxItems = emails.map(e =>
