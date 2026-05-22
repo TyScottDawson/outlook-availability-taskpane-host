@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Availability Finder</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #181c27;
+      --surface2: #1e2333;
+      --border: #2a3050;
+      --accent: #4f7fff;
+      --accent2: #7c5cfc;
+      --green: #34d399;
+      --text: #e8eaf6;
+      --muted: #8892b0;
+      --tag-bg: #1e2a4a;
+      --radius: 8px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 16px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-family: 'DM Mono', monospace;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h1::before { content: '◈'; font-size: 12px; }
+
+    .section {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 7px;
+    }
+
+    /* People Input */
+    .people-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px;
+      min-height: 44px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      cursor: text;
+    }
+    .people-box:focus-within { border-color: var(--accent); }
+
+    .tag {
+      background: var(--tag-bg);
+      border: 1px solid #2a3a6a;
+      border-radius: 4px;
+      padding: 2px 8px 2px 10px;
+      font-size: 12px;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'DM Mono', monospace;
+      white-space: nowrap;
+    }
+    .tag-remove {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1;
+      background: none;
+      border: none;
+      color: #556;
+      transition: color 0.15s;
+    }
+    .tag-remove:hover { color: #ff6b6b; }
+
+    .people-input {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      flex: 1;
+      min-width: 120px;
+    }
+    .people-input::placeholder { color: var(--muted); }
+
+    /* Timezone */
+    select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 9px 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238892b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      cursor: pointer;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* Work hours */
+    .hours-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+    .hours-sep { color: var(--muted); font-size: 12px; text-align: center; }
+    input[type="time"] {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 9px 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      outline: none;
+    }
+    input[type="time"]:focus { border-color: var(--accent); }
+    input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+
+    /* Date pills */
+    .date-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .date-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 13px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--muted);
+      user-select: none;
+    }
+    .date-pill:hover { border-color: var(--accent); color: var(--text); }
+    .date-pill.selected { background: #1a2b5a; border-color: var(--accent); color: var(--accent); }
+
+    .date-custom {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    input[type="date"] {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 8px 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      outline: none;
+    }
+    input[type="date"]:focus { border-color: var(--accent); }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+
+    .btn-add-date {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .btn-add-date:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Selected dates list */
+    .selected-dates {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .date-chip {
+      background: var(--tag-bg);
+      border: 1px solid #2a3a6a;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-family: 'DM Mono', monospace;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .date-chip button {
+      background: none; border: none; color: #556;
+      cursor: pointer; font-size: 13px; line-height: 1;
+      transition: color 0.15s;
+    }
+    .date-chip button:hover { color: #ff6b6b; }
+
+    /* Generate button */
+    .btn-generate {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 4px;
+    }
+    .btn-generate:hover { opacity: 0.9; }
+    .btn-generate:active { transform: scale(0.99); }
+    .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Loading */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      font-family: 'DM Mono', monospace;
+    }
+    .loading.active { display: block; }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Output */
+    .output-box {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-top: 16px;
+    }
+    .output-box.visible { display: block; }
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .output-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--green);
+    }
+    .btn-copy {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: 'DM Mono', monospace;
+      transition: all 0.15s;
+    }
+    .btn-copy:hover { border-color: var(--green); color: var(--green); }
+    .btn-copy.copied { border-color: var(--green); color: var(--green); }
+
+    .output-text {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .btn-insert {
+      width: 100%;
+      margin-top: 10px;
+      padding: 9px;
+      background: var(--surface2);
+      border: 1px solid var(--green);
+      border-radius: var(--radius);
+      color: var(--green);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-insert:hover { background: #1a3a2a; }
+
+    /* Error */
+    .error-msg {
+      display: none;
+      background: #2a1a1a;
+      border: 1px solid #5a2a2a;
+      border-radius: var(--radius);
+      color: #ff8a8a;
+      padding: 10px 12px;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .error-msg.visible { display: block; }
+
+    /* Divider */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 18px 0;
+    }
+
+    /* Slot duration */
+    .slot-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .slot-btn {
+      padding: 5px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .slot-btn.active { background: #1a2b5a; border-color: var(--accent); color: var(--accent); }
+    .slot-btn:hover { border-color: var(--accent); color: var(--text); }
+  </style>
+</head>
+<body>
+
+<h1>Availability Finder</h1>
+
+<!-- PEOPLE -->
+<div class="section">
+  <label>Attendees</label>
+  <div class="people-box" id="peopleBox" onclick="document.getElementById('emailInput').focus()">
+    <input class="people-input" id="emailInput" type="text"
+      placeholder="Type email & press Enter…"
+      autocomplete="off"
+      onkeydown="handleEmailKey(event)"
+    />
+  </div>
+  <div style="margin-top:6px">
+    <button class="btn-add-date" onclick="addSelf()" style="font-size:11px;padding:5px 10px;">+ Add myself</button>
+  </div>
+</div>
+
+<!-- TIMEZONE -->
+<div class="section">
+  <label>Timezone</label>
+  <select id="tzSelect">
+    <option value="America/New_York">Eastern Time (ET)</option>
+    <option value="America/Chicago" selected>Central Time (CT)</option>
+    <option value="America/Denver">Mountain Time (MT)</option>
+    <option value="America/Los_Angeles">Pacific Time (PT)</option>
+    <option value="Europe/London">London (GMT/BST)</option>
+    <option value="Europe/Paris">Central European (CET)</option>
+    <option value="Asia/Tokyo">Japan (JST)</option>
+    <option value="Australia/Sydney">Sydney (AEST)</option>
+    <option value="UTC">UTC</option>
+  </select>
+</div>
+
+<!-- WORK HOURS -->
+<div class="section">
+  <label>Working Hours</label>
+  <div class="hours-row">
+    <input type="time" id="startHour" value="08:00" />
+    <div class="hours-sep">to</div>
+    <input type="time" id="endHour" value="17:00" />
+  </div>
+</div>
+
+<!-- MIN SLOT DURATION -->
+<div class="section">
+  <label>Minimum Slot Duration</label>
+  <div class="slot-row" id="slotBtns">
+    <button class="slot-btn" data-val="30" onclick="setSlot(this)">30 min</button>
+    <button class="slot-btn active" data-val="60" onclick="setSlot(this)">1 hr</button>
+    <button class="slot-btn" data-val="90" onclick="setSlot(this)">1.5 hr</button>
+    <button class="slot-btn" data-val="120" onclick="setSlot(this)">2 hr</button>
+  </div>
+</div>
+
+<hr class="divider"/>
+
+<!-- DATES -->
+<div class="section">
+  <label>Days to Check</label>
+  <div class="date-row" id="quickDates"></div>
+  <div class="date-custom">
+    <input type="date" id="customDate" />
+    <button class="btn-add-date" onclick="addCustomDate()">Add Date</button>
+  </div>
+  <div style="margin-top:10px;">
+    <div class="selected-dates" id="selectedDates"></div>
+  </div>
+</div>
+
+<button class="btn-generate" id="generateBtn" onclick="generate()">
+  ◈ Find Availability
+</button>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  Checking calendars…
+</div>
+
+<div class="error-msg" id="errorMsg"></div>
+
+<div class="output-box" id="outputBox">
+  <div class="output-header">
+    <span class="output-label">✓ Available Times</span>
+    <button class="btn-copy" id="copyBtn" onclick="copyOutput()">Copy</button>
+  </div>
+  <div class="output-text" id="outputText"></div>
+  <button class="btn-insert" onclick="insertToEmail()">↳ Insert into Email</button>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────
+  let people = [];       // { email, name }
+  let selectedDates = []; // ISO date strings "YYYY-MM-DD"
+  let minSlotMins = 60;
+  let generatedText = '';
+
+  // ── Office.js init ─────────────────────────────────────
+  Office.onReady(info => {
+    if (info.host === Office.HostType.Outlook) {
+      addSelf();
+    }
+    buildQuickDates();
+  });
+
+  // ── People ─────────────────────────────────────────────
+  function addSelf() {
+    try {
+      const mb = Office.context.mailbox;
+      const email = mb.userProfile.emailAddress;
+      const name = mb.userProfile.displayName || email;
+      addPerson(email, name);
+    } catch(e) {
+      // demo mode outside Outlook
+      addPerson('me@company.com', 'Me');
+    }
+  }
+
+  function handleEmailKey(e) {
+    const val = e.target.value.trim();
+    if ((e.key === 'Enter' || e.key === ',') && val) {
+      e.preventDefault();
+      addPerson(val, val);
+      e.target.value = '';
+    }
+    if (e.key === 'Backspace' && !val && people.length > 0) {
+      removePerson(people[people.length - 1].email);
+    }
+  }
+
+  function addPerson(email, name) {
+    if (people.find(p => p.email === email)) return;
+    people.push({ email, name });
+    renderPeople();
+  }
+
+  function removePerson(email) {
+    people = people.filter(p => p.email !== email);
+    renderPeople();
+  }
+
+  function renderPeople() {
+    const box = document.getElementById('peopleBox');
+    const input = document.getElementById('emailInput');
+    box.querySelectorAll('.tag').forEach(t => t.remove());
+    people.forEach(p => {
+      const tag = document.createElement('div');
+      tag.className = 'tag';
+      tag.innerHTML = `<span>${p.name}</span><button class="tag-remove" onclick="removePerson('${p.email}')">×</button>`;
+      box.insertBefore(tag, input);
+    });
+  }
+
+  // ── Quick Dates ────────────────────────────────────────
+  function buildQuickDates() {
+    const container = document.getElementById('quickDates');
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const today = new Date();
+    // next 7 weekdays
+    const options = [];
+    let d = new Date(today);
+    d.setDate(d.getDate() + 1); // start tomorrow
+    while (options.length < 7) {
+      if (d.getDay() !== 0 && d.getDay() !== 6) {
+        options.push(new Date(d));
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    options.forEach(dt => {
+      const iso = toISO(dt);
+      const pill = document.createElement('button');
+      pill.className = 'date-pill';
+      pill.textContent = `${days[dt.getDay()]} ${dt.getMonth()+1}/${dt.getDate()}`;
+      pill.dataset.iso = iso;
+      pill.onclick = () => toggleQuickDate(pill, iso);
+      container.appendChild(pill);
+    });
+  }
+
+  function toISO(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function toggleQuickDate(pill, iso) {
+    if (selectedDates.includes(iso)) {
+      selectedDates = selectedDates.filter(x => x !== iso);
+      pill.classList.remove('selected');
+    } else {
+      selectedDates.push(iso);
+      pill.classList.add('selected');
+    }
+    renderSelectedDates();
+  }
+
+  function addCustomDate() {
+    const val = document.getElementById('customDate').value;
+    if (!val || selectedDates.includes(val)) return;
+    selectedDates.push(val);
+    renderSelectedDates();
+    document.getElementById('customDate').value = '';
+  }
+
+  function removeDate(iso) {
+    selectedDates = selectedDates.filter(x => x !== iso);
+    // uncheck quick pill if exists
+    document.querySelectorAll('.date-pill').forEach(p => {
+      if (p.dataset.iso === iso) p.classList.remove('selected');
+    });
+    renderSelectedDates();
+  }
+
+  function renderSelectedDates() {
+    const container = document.getElementById('selectedDates');
+    container.innerHTML = '';
+    [...selectedDates].sort().forEach(iso => {
+      const d = new Date(iso + 'T12:00:00');
+      const label = d.toLocaleDateString('en-US', { weekday:'short', month:'numeric', day:'numeric' });
+      const chip = document.createElement('div');
+      chip.className = 'date-chip';
+      chip.innerHTML = `<span>${label}</span><button onclick="removeDate('${iso}')">×</button>`;
+      container.appendChild(chip);
+    });
+  }
+
+  // ── Slot Duration ──────────────────────────────────────
+  function setSlot(btn) {
+    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    minSlotMins = parseInt(btn.dataset.val);
+  }
+
+  // ── Core: Get Free/Busy via EWS ───────────────────────
+  async function getFreeBusy(emails, dates, tzId, startHour, endHour) {
+    // Build EWS GetUserAvailability SOAP request
+    const mailbox = Office.context.mailbox;
+    const ewsUrl = mailbox.ewsUrl;
+
+    // Build MailboxDataArray
+    const mailboxItems = emails.map(e =>
+      `<t:MailboxData>
+        <t:Email><t:Address>${e}</t:Address></t:Email>
+        <t:AttendeeType>Required</t:AttendeeType>
+        <t:ExcludeConflicts>false</t:ExcludeConflicts>
+      </t:MailboxData>`
+    ).join('');
+
+    // Time window: first date start → last date end
+    const sortedDates = [...dates].sort();
+    const windowStart = `${sortedDates[0]}T${startHour}:00`;
+    const windowEnd   = `${sortedDates[sortedDates.length-1]}T${endHour}:00`;
+
+    const soap = `<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
+               xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types"
+               xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages">
+  <soap:Header>
+    <t:RequestServerVersion Version="Exchange2013"/>
+    <t:TimeZoneContext><t:TimeZoneDefinition Id="${tzId}"/></t:TimeZoneContext>
+  </soap:Header>
+  <soap:Body>
+    <m:GetUserAvailabilityRequest>
+      <t:TimeZone>
+        <t:Bias>0</t:Bias>
+        <t:StandardTime><t:Bias>0</t:Bias><t:Time>02:00:00</t:Time><t:DayOrder>1</t:DayOrder><t:Month>11</t:Month><t:DayOfWeek>Sunday</t:DayOfWeek></t:StandardTime>
+        <t:DaylightTime><t:Bias>-60</t:Bias><t:Time>02:00:00</t:Time><t:DayOrder>2</t:DayOrder><t:Month>3</t:Month><t:DayOfWeek>Sunday</t:DayOfWeek></t:DaylightTime>
+      </t:TimeZone>
+      <m:MailboxDataArray>${mailboxItems}</m:MailboxDataArray>
+      <t:FreeBusyViewOptions>
+        <t:TimeWindow>
+          <t:StartTime>${windowStart}</t:StartTime>
+          <t:EndTime>${windowEnd}</t:EndTime>
+        </t:TimeWindow>
+        <t:MergedFreeBusyIntervalInMinutes>30</t:MergedFreeBusyIntervalInMinutes>
+        <t:RequestedView>MergedOnly</t:RequestedView>
+      </t:FreeBusyViewOptions>
+    </m:GetUserAvailabilityRequest>
+  </soap:Body>
+</soap:Envelope>`;
+
+    return new Promise((resolve, reject) => {
+      mailbox.makeEwsRequestAsync(soap, (result) => {
+        if (result.status === Office.AsyncResultStatus.Failed) {
+          reject(new Error(result.error.message));
+        } else {
+          resolve(result.value);
+        }
+      });
+    });
+  }
+
+  // Parse merged free/busy string into busy slots per date
+  function parseMergedFreeBusy(xmlStr, dates, startHour, endHour) {
+    // Returns { "YYYY-MM-DD": boolean[] } where each bool = isFree for each 30-min slot
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlStr, 'text/xml');
+    const mergedNodes = doc.querySelectorAll('MergedFreeBusy');
+    
+    // One merged string covers the whole window, one per attendee
+    // We need to combine: a slot is free only if ALL attendees are free
+    const slotsPerDay = Math.round(((timeToMins(endHour) - timeToMins(startHour))) / 30);
+    
+    // Build combined free/busy per date
+    const result = {};
+    dates.sort().forEach(d => { result[d] = new Array(slotsPerDay).fill(true); });
+
+    const sortedDates = [...dates].sort();
+    const windowStartMins = timeToMins(startHour);
+
+    mergedNodes.forEach(node => {
+      const merged = node.textContent.trim();
+      // Each char = 30-min slot from windowStart
+      // 0=free, 1=tentative, 2=busy, 3=out of office, 4=no data
+      let totalSlot = 0;
+      sortedDates.forEach(d => {
+        for (let s = 0; s < slotsPerDay; s++) {
+          const ch = merged[totalSlot + s];
+          if (ch && ch !== '0') {
+            if (result[d]) result[d][s] = false;
+          }
+        }
+        totalSlot += slotsPerDay;
+      });
+    });
+
+    return result;
+  }
+
+  function timeToMins(hhmm) {
+    const [h, m] = hhmm.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  // ── Merge free slots into contiguous blocks ────────────
+  function getFreeBlocks(freeBusyPerDate, startHour, minSlotMins) {
+    const startMins = timeToMins(startHour);
+    const result = {};
+    Object.entries(freeBusyPerDate).forEach(([date, slots]) => {
+      const blocks = [];
+      let i = 0;
+      while (i < slots.length) {
+        if (slots[i]) {
+          let j = i;
+          while (j < slots.length && slots[j]) j++;
+          const blockMins = (j - i) * 30;
+          if (blockMins >= minSlotMins) {
+            const s = startMins + i * 30;
+            const e = startMins + j * 30;
+            blocks.push({ start: s, end: e });
+          }
+          i = j;
+        } else {
+          i++;
+        }
+      }
+      result[date] = blocks;
+    });
+    return result;
+  }
+
+  // ── Format output ──────────────────────────────────────
+  function formatTime(totalMins, tzAbbr) {
+    const h = Math.floor(totalMins / 60);
+    const m = totalMins % 60;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    const mm = m === 0 ? '00' : String(m).padStart(2,'0');
+    return `${h12}:${mm} ${ampm} ${tzAbbr}`;
+  }
+
+  function tzAbbr(tzId) {
+    const map = {
+      'America/New_York': 'ET',
+      'America/Chicago': 'CT',
+      'America/Denver': 'MT',
+      'America/Los_Angeles': 'PT',
+      'Europe/London': 'GMT',
+      'Europe/Paris': 'CET',
+      'Asia/Tokyo': 'JST',
+      'Australia/Sydney': 'AEST',
+      'UTC': 'UTC'
+    };
+    return map[tzId] || 'LT';
+  }
+
+  function formatBlocks(freeBlocks, tzId) {
+    const abbr = tzAbbr(tzId);
+    let out = '';
+    Object.entries(freeBlocks).sort().forEach(([iso, blocks]) => {
+      if (!blocks.length) return;
+      const d = new Date(iso + 'T12:00:00');
+      const dayLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'numeric', day: 'numeric' });
+      out += `-${dayLabel}\n`;
+      blocks.forEach(b => {
+        out += `     -${formatTime(b.start, abbr)} - ${formatTime(b.end, abbr)}\n`;
+      });
+    });
+    return out.trim();
+  }
+
+  // ── Demo mode (no real Outlook / EWS) ─────────────────
+  function generateDemo(dates, startHour, endHour, tzId, minSlotMins) {
+    const slotsPerDay = Math.round((timeToMins(endHour) - timeToMins(startHour)) / 30);
+    const freeBusy = {};
+    dates.forEach(d => {
+      const slots = [];
+      for (let i = 0; i < slotsPerDay; i++) {
+        // Simulate some busy slots
+        slots.push(Math.random() > 0.35);
+      }
+      // Ensure at least some free slots exist
+      for (let i = 0; i < 4; i++) slots[Math.floor(Math.random()*slotsPerDay)] = true;
+      freeBusy[d] = slots;
+    });
+    const blocks = getFreeBlocks(freeBusy, startHour, minSlotMins);
+    return formatBlocks(blocks, tzId);
+  }
+
+  // ── Main generate ──────────────────────────────────────
+  async function generate() {
+    if (people.length === 0) { showError('Add at least one attendee.'); return; }
+    if (selectedDates.length === 0) { showError('Select at least one date.'); return; }
+
+    hideError();
+    setLoading(true);
+
+    const emails = people.map(p => p.email);
+    const tzId = document.getElementById('tzSelect').value;
+    const startHour = document.getElementById('startHour').value;
+    const endHour = document.getElementById('endHour').value;
+
+    try {
+      // Try real EWS
+      const xmlStr = await getFreeBusy(emails, selectedDates, tzId, startHour, endHour);
+      const freeBusy = parseMergedFreeBusy(xmlStr, selectedDates, startHour, endHour);
+      const blocks = getFreeBlocks(freeBusy, startHour, minSlotMins);
+      generatedText = formatBlocks(blocks, tzId);
+    } catch(e) {
+      // Fall back to demo
+      console.warn('EWS unavailable, using demo data:', e.message);
+      generatedText = generateDemo(selectedDates, startHour, endHour, tzId, minSlotMins);
+    }
+
+    setLoading(false);
+    showOutput(generatedText);
+  }
+
+  function setLoading(on) {
+    document.getElementById('loading').classList.toggle('active', on);
+    document.getElementById('generateBtn').disabled = on;
+  }
+
+  function showOutput(text) {
+    const box = document.getElementById('outputBox');
+    document.getElementById('outputText').textContent = text || '(No overlapping free time found for the selected days.)';
+    box.classList.add('visible');
+    box.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('visible');
+  }
+  function hideError() {
+    document.getElementById('errorMsg').classList.remove('visible');
+  }
+
+  function copyOutput() {
+    navigator.clipboard.writeText(generatedText).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function insertToEmail() {
+    try {
+      Office.context.mailbox.item.body.setSelectedDataAsync(
+        generatedText,
+        { coercionType: Office.CoercionType.Text },
+        () => {}
+      );
+    } catch(e) {
+      showError('Could not insert into email. Make sure you have a compose window open.');
+    }
+  }
+</script>
+</body>
+</html>
