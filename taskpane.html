@@ -653,17 +653,23 @@
   </soap:Body>
 </soap:Envelope>`;
 
+    showDebug('Sending EWS request for ' + emails.length + ' attendee(s) over ' + sortedDates.length + ' day(s)...');
+
     return new Promise((resolve, reject) => {
-      mailbox.makeEwsRequestAsync(soap, (result) => {
-        if (result.status === Office.AsyncResultStatus.Failed) {
-          showDebug('EWS call failed: ' + result.error.message);
-          reject(new Error(result.error.message));
-        } else {
-          // Log raw response so we can diagnose issues
-          showDebug('RAW EWS RESPONSE: ' + result.value);
-          resolve(result.value);
-        }
-      });
+      try {
+        mailbox.makeEwsRequestAsync(soap, (result) => {
+          if (result.status === Office.AsyncResultStatus.Failed) {
+            showDebug('EWS failed status: ' + JSON.stringify(result.error));
+            reject(new Error(result.error.message));
+          } else {
+            showDebug('RAW EWS RESPONSE: ' + result.value);
+            resolve(result.value);
+          }
+        });
+      } catch(ex) {
+        showDebug('makeEwsRequestAsync threw exception: ' + ex.message);
+        reject(ex);
+      }
     });
   }
 
