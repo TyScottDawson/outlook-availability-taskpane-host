@@ -456,6 +456,8 @@
 
 <div class="error-msg" id="errorMsg"></div>
 
+<div id="debugMsg" style="display:none; margin-top:10px; padding:8px 12px; background:#1a1f2e; border:1px solid #2a3050; border-radius:8px; font-size:11px; font-family:'DM Mono',monospace; color:#8892b0; word-break:break-word;"></div>
+
 <div class="output-box" id="outputBox">
   <div class="output-header">
     <span class="output-label">✓ Available Times</span>
@@ -807,17 +809,26 @@
     const startHour = document.getElementById('startHour').value;
     const endHour = document.getElementById('endHour').value;
 
+    let debugMsg = '';
     try {
       // Try real EWS
       const xmlStr = await getFreeBusy(emails, selectedDates, tzId, startHour, endHour);
+      // Surface any EWS-level error messages
+      if (xmlStr.includes('ResponseClass="Error"')) {
+        const match = xmlStr.match(/<m:MessageText>([^<]+)<\/m:MessageText>/) ||
+                      xmlStr.match(/<MessageText>([^<]+)<\/MessageText>/);
+        throw new Error(match ? match[1] : 'EWS returned an error response — check attendee emails and permissions.');
+      }
       const freeBusy = parseMergedFreeBusy(xmlStr, selectedDates, startHour, endHour);
       const blocks = getFreeBlocks(freeBusy, startHour, minSlotMins);
       generatedText = formatBlocks(blocks, tzId);
+      debugMsg = '✓ Live calendar data loaded successfully.';
     } catch(e) {
-      // Fall back to demo
-      console.warn('EWS unavailable, using demo data:', e.message);
+      console.warn('EWS error:', e.message);
+      debugMsg = '⚠ Could not load live calendar data: ' + e.message + ' — showing demo data instead.';
       generatedText = generateDemo(selectedDates, startHour, endHour, tzId, minSlotMins);
     }
+    showDebug(debugMsg);
 
     setLoading(false);
     showOutput(generatedText);
@@ -833,6 +844,11 @@
     document.getElementById('outputText').innerHTML = text || '(No overlapping free time found for the selected days.)';
     box.classList.add('visible');
     box.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function showDebug(msg) {
+    const el = document.getElementById('debugMsg');
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
   }
 
   function showError(msg) {
