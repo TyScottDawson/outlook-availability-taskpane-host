@@ -858,11 +858,35 @@
 
   function insertToEmail() {
     try {
-      Office.context.mailbox.item.body.setSelectedDataAsync(
-        generatedText,
-        { coercionType: Office.CoercionType.Html },
-        () => {}
-      );
+      const item = Office.context.mailbox.item;
+      // First check what format the email body is in
+      item.body.getTypeAsync((typeResult) => {
+        if (typeResult.status === Office.AsyncResultStatus.Failed) {
+          showError('Could not insert into email. Make sure you have a compose window open.');
+          return;
+        }
+        const bodyType = typeResult.value;
+        if (bodyType === Office.CoercionType.Html) {
+          // Already HTML — insert directly
+          item.body.setSelectedDataAsync(generatedText, { coercionType: Office.CoercionType.Html }, (r) => {
+            if (r.status === Office.AsyncResultStatus.Failed) {
+              showError('Insert failed: ' + r.error.message);
+            }
+          });
+        } else {
+          // Plain text email — convert to HTML first, then insert
+          item.body.setAsync('', { coercionType: Office.CoercionType.Html }, (convertResult) => {
+            if (convertResult.status === Office.AsyncResultStatus.Failed) {
+              // Conversion failed — fall back to plain text
+              const tmp = document.createElement('div');
+              tmp.innerHTML = generatedText;
+              item.body.setSelectedDataAsync(tmp.innerText, { coercionType: Office.CoercionType.Text }, () => {});
+            } else {
+              item.body.setSelectedDataAsync(generatedText, { coercionType: Office.CoercionType.Html }, () => {});
+            }
+          });
+        }
+      });
     } catch(e) {
       showError('Could not insert into email. Make sure you have a compose window open.');
     }
