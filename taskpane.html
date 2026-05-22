@@ -847,8 +847,15 @@
   function copyOutput() {
     const tmp = document.createElement('div');
     tmp.innerHTML = generatedText;
-    const plain = tmp.innerText;
-    navigator.clipboard.writeText(plain).then(() => {
+    let plain = '';
+    tmp.querySelectorAll('ul > li').forEach(dayLi => {
+      const dayText = dayLi.childNodes[0].textContent.trim();
+      plain += `• ${dayText}\n`;
+      dayLi.querySelectorAll('ul > li').forEach(timeLi => {
+        plain += `     • ${timeLi.textContent.trim()}\n`;
+      });
+    });
+    navigator.clipboard.writeText(plain.trim()).then(() => {
       const btn = document.getElementById('copyBtn');
       btn.textContent = 'Copied!';
       btn.classList.add('copied');
