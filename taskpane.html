@@ -818,7 +818,7 @@
 
     let debugMsg = '';
     try {
-      // Try real EWS
+      showDebug('Calling getFreeBusy...');
       const xmlStr = await getFreeBusy(emails, selectedDates, tzId, startHour, endHour);
       // Surface any EWS-level error messages
       if (xmlStr.includes('ResponseClass="Error"')) {
@@ -832,8 +832,7 @@
       const mergedCount = (xmlStr.match(/MergedFreeBusy/g) || []).length / 2;
       debugMsg = `✓ Live calendar data loaded (${mergedCount} attendee response(s)).`;
     } catch(e) {
-      console.warn('EWS error:', e.message);
-      debugMsg = '⚠ Could not load live calendar data: ' + e.message + ' — showing demo data instead.';
+      debugMsg = '⚠ Could not load live calendar data: ' + e.message + (e.stack ? ' | stack: ' + e.stack.split('\n')[1] : '') + ' — showing demo data instead.';
       generatedText = generateDemo(selectedDates, startHour, endHour, tzId, minSlotMins);
     }
     showDebug(debugMsg);
